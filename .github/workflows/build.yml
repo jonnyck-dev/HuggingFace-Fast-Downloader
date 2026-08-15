@@ -1,0 +1,80 @@
+# Compila ejecutables portables para Windows, Linux y macOS con GitHub Actions.
+# Se dispara al publicar un tag v* (ej: v1.3.0) y adjunta los binarios a la release.
+
+name: build-releases
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+            artifact: HuggingFace-Fast-Downloader.exe
+          - os: ubuntu-latest
+            name: Linux
+            artifact: HuggingFace-Fast-Downloader-linux
+          - os: macos-latest
+            name: macOS
+            artifact: HuggingFace-Fast-Downloader-macos
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Linux: python del sistema + tkinter vía apt (el runner no trae Tk)
+      - name: Dependencias de Linux (Tkinter)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-tk python3-pip
+
+      # Windows / macOS: python oficial con Tk incluido
+      - uses: actions/setup-python@v5
+        if: runner.os != 'Linux'
+        with:
+          python-version: "3.11"
+
+      - name: Instalar PyInstaller
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            pip install --break-system-packages pyinstaller
+          else
+            pip install pyinstaller
+          fi
+
+      - name: Verificar Tkinter
+        run: python -c "import tkinter; print('tkinter OK', tkinter.TkVersion)"
+
+      - name: Compilar (Windows — sin consola)
+        if: runner.os == 'Windows'
+        run: python -m PyInstaller --onefile --windowed --clean --name HuggingFace-Fast-Downloader gui.py
+
+      - name: Compilar (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: python -m PyInstaller --onefile --clean --name HuggingFace-Fast-Downloader gui.py
+
+      - name: Renombrar artefacto
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            mv dist/HuggingFace-Fast-Downloader.exe "dist/${{ matrix.artifact }}"
+          else
+            mv dist/HuggingFace-Fast-Downloader "dist/${{ matrix.artifact }}"
+          fi
+
+      - name: Adjuntar a la release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.artifact }}
+          generate_release_notes: true

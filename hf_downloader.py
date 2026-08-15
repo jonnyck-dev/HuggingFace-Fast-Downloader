@@ -32,7 +32,7 @@ import urllib.error
 import urllib.request
 from urllib.parse import quote
 
-__version__ = "1.1.0"
+__version__ = "1.3.0"
 
 USER_AGENT = "HuggingFace-Fast-Downloader/1.0.0"
 MAX_RETRIES = 3

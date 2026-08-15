@@ -2,7 +2,18 @@
 
 Descarga modelos, datasets y spaces de [HuggingFace](https://huggingface.co) a **máxima velocidad** usando descarga paralela por chunks, con **cero dependencias** (solo Python estándar).
 
-Funciona en **Windows, Linux y macOS**.
+## 🖥️ Compatibilidad
+
+| Modo | Windows | Linux | macOS |
+|---|---|---|---|
+| Código Python (`gui.py`, `webui.py`, CLI) | ✅ | ✅ | ✅ |
+| Ejecutable portable (release) | ✅ `.exe` | ✅ `-linux` | ✅ `-macos` (GitHub Actions) |
+
+> ⚠️ El `.exe` es **solo para Windows** (PyInstaller compila nativo por plataforma, no cruza).
+> En Linux y macOS puedes usar el binario portable de la release o ejecutar con Python:
+> `python gui.py` (ventana nativa) o `python webui.py` (navegador). Los binarios de
+> macOS — y los de todas las plataformas en releases futuras — se compilan solos con
+> **GitHub Actions** al publicar un tag `v*`.
 
 ## ✨ Características
 
