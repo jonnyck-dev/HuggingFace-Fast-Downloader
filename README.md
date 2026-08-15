@@ -11,6 +11,7 @@ Funciona en **Windows, Linux y macOS**.
 | ⚡ **Descarga paralela** | Cada archivo se parte en trozos y se baja con N conexiones simultáneas (HTTP `Range`) |
 | 🧵 **Hilos automáticos** | Detecta el número óptimo de conexiones según tu CPU (sobreescribible) |
 | 🔁 **Resume** | Si la descarga se corta, reanuda desde donde quedó, sin volver a empezar |
+| 🛡 **Protección de archivos** | Si un archivo ya existe en el destino, te pregunta: renombrar, sobrescribir u omitir |
 | ✅ **Verificación SHA-256** | Cuando HuggingFace expone el hash (LFS oid), verifica la integridad automáticamente |
 | 📦 **Repos completos** | Pega la URL de un repo y baja **todos** sus archivos, o elige cuáles |
 | 🔑 **Repos gated** | Soporta tokens de HuggingFace |
@@ -64,6 +65,7 @@ Opciones del CLI:
 | `--list` | Solo listar los archivos sin descargar |
 | `--no-resume` | No reanudar chunks parciales |
 | `--no-verify` | Omitir verificación SHA-256 |
+| `--overwrite` | Sobrescribir archivos que ya existen (por defecto se omiten si están completos) |
 
 ## 🧠 ¿Cómo funciona?
 

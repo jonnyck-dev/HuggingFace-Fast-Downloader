@@ -113,6 +113,7 @@ def main(argv=None):
     parser.add_argument("--list", action="store_true", help="Solo listar los archivos del repo")
     parser.add_argument("--no-resume", action="store_true", help="No reanudar chunks parciales")
     parser.add_argument("--no-verify", action="store_true", help="Omitir verificación SHA-256")
+    parser.add_argument("--overwrite", action="store_true", help="Sobrescribir archivos que ya existen en el destino (por defecto se omiten si están completos)")
     args = parser.parse_args(argv)
 
     token = args.token if args.token is not None else os.environ.get("HF_TOKEN", "")
@@ -174,6 +175,9 @@ def main(argv=None):
         dest_dir = os.path.dirname(dest) or "."
 
     job_key = hd.repo_key(kind, org, repo, rev) if mode == "repo" else os.path.basename(files[0]["path"])
+    conflict_policy = {}
+    if args.overwrite:
+        conflict_policy = {f["path"]: "overwrite" for f in files}
     job = hd.DownloadJob(
         files,
         dest_dir,
@@ -186,6 +190,7 @@ def main(argv=None):
         token=token,
         resume=not args.no_resume,
         verify=not args.no_verify,
+        conflict_policy=conflict_policy,
     )
 
     # las URLs ya las resuelve el motor; solo reportar destino

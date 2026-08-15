@@ -32,7 +32,7 @@ import urllib.error
 import urllib.request
 from urllib.parse import quote
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 USER_AGENT = "HuggingFace-Fast-Downloader/1.0.0"
 MAX_RETRIES = 3
@@ -448,6 +448,7 @@ class DownloadJob:
         on_progress=None,
         resume=True,
         verify=True,
+        conflict_policy=None,
     ):
         self.files = [dict(f, downloaded=0, fstate="pending") for f in files]
         self.total = sum(f["size"] for f in self.files)
@@ -464,7 +465,9 @@ class DownloadJob:
         self.on_progress = on_progress
         self.cancel = threading.Event()
         self.temp_dir = os.path.join(dest_dir, ".chunks_" + sanitize(job_key))
+        self.conflict_policy = conflict_policy or {}
         self.state = JobState(self.files, self.total)
+        self._apply_conflicts()
 
     # -- helpers internos ------------------------------------------------
 
@@ -472,9 +475,76 @@ class DownloadJob:
         return os.path.join(self.temp_dir, f"f{idx}_c{start_byte}.part")
 
     def _save_path(self, f):
-        # "save_as" permite guardar el archivo con otro nombre (CLI legacy)
+        # "save_as" permite guardar el archivo con otro nombre (CLI legacy / renombrar)
         rel = f.get("save_as") or f["path"]
         return os.path.join(self.dest_dir, rel)
+
+    # -- manejo de archivos existentes (no pisar sin permiso) ----------------
+
+    def _next_rename(self, f):
+        """Calcula un nombre alternativo tipo README_1.md si ya existe."""
+        rel = f.get("save_as") or f["path"]
+        base, ext = os.path.splitext(rel)
+        n = 1
+        while True:
+            cand = f"{base}_{n}{ext}"
+            if not os.path.exists(os.path.join(self.dest_dir, cand)):
+                return cand
+            n += 1
+
+    def _apply_conflicts(self):
+        """Aplica la política ante archivos que ya existen en el destino.
+
+        conflict_policy: {path: "overwrite" | "rename" | "skip"}
+        Sin política (auto): si el archivo final ya existe y está completo,
+        no se vuelve a descargar (comportamiento resume del script original).
+        """
+        policy = self.conflict_policy or {}
+        kept = []
+        for f in self.files:
+            path = f["path"]
+            dest = os.path.join(self.dest_dir, f.get("save_as") or path)
+            exists = os.path.exists(dest)
+            p = policy.get(path, "auto")
+
+            if p == "skip":
+                self.state.log_msg(f"⏭ {path}: omitido por decisión del usuario")
+                continue
+
+            if p == "rename":
+                if exists:
+                    new_rel = self._next_rename(f)
+                    f["save_as"] = new_rel
+                    self.state.log_msg(f"📝 {path}: ya existe → se guardará como {new_rel}")
+                kept.append(f)
+                continue
+
+            if p == "overwrite":
+                if exists:
+                    self.state.log_msg(f"♻️ {path}: se sobrescribirá (decisión del usuario)")
+                kept.append(f)
+                continue
+
+            # auto: reanudar — archivo completo en destino = ya descargado
+            if exists:
+                if f["size"] > 0 and os.path.getsize(dest) >= f["size"]:
+                    f["fstate"] = "done"
+                    f["downloaded"] = f["size"]
+                    f["_complete"] = True
+                    self.state.log_msg(f"✓ {path}: ya descargado en destino — omitido")
+                    kept.append(f)
+                    continue
+                if f["size"] == 0:
+                    f["fstate"] = "done"
+                    f["_complete"] = True
+                    self.state.log_msg(f"✓ {path}: ya existe en destino — omitido")
+                    kept.append(f)
+                    continue
+            kept.append(f)
+
+        self.files[:] = kept
+        self.total = sum(f["size"] for f in self.files)
+        self.state.total = self.total
 
     def _worker(self, q):
         while True:
@@ -502,6 +572,8 @@ class DownloadJob:
     def _build_tasks(self, q):
         """Reparte cada archivo en chunks y los mete en la cola."""
         for idx, f in enumerate(self.files):
+            if f.get("_complete"):
+                continue  # ya descargado en una corrida anterior
             size = f["size"]
             if size <= 0:
                 q.put((idx, -1, -1, 0))  # tamaño desconocido → stream directo
@@ -603,6 +675,9 @@ class DownloadJob:
 
         all_ok = True
         for idx, f in enumerate(self.files):
+            if f.get("_complete"):
+                state.set_file_state(idx, "done")
+                continue
             dest_path = self._save_path(f)
             os.makedirs(os.path.dirname(dest_path) or self.dest_dir, exist_ok=True)
 

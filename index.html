@@ -364,6 +364,11 @@
           <h4>4. Descarga</h4>
           <p>Cada archivo se parte en trozos y se baja con varias conexiones a la vez. Si se corta, reanuda. Y se verifica SHA-256.</p>
         </div>
+        <div class="how-item">
+          <div class="ico">🛡</div>
+          <h4>5. Sin sorpresas</h4>
+          <p>Si un archivo ya existe en el destino, te pregunta: <b>renombrar</b>, <b>sobrescribir</b> u <b>omitir</b>.</p>
+        </div>
       </div>
       <div style="font-size:13px; color:var(--muted); line-height:1.7;">
         <b>Detalles:</b> la descarga usa peticiones HTTP <code>Range</code> para bajar un archivo en N trozos paralelos
@@ -382,6 +387,26 @@
     </a>
     <div style="margin-top:14px; font-size:12.5px;">Hecho con ❤️ para descargar modelos sin paciencia · solo necesitas Python 3.8+</div>
   </footer>
+</div>
+
+<!-- ══════════ Modal de conflictos (archivos existentes) ══════════ -->
+<div class="modal-backdrop" id="conflictModal">
+  <div class="modal">
+    <div class="modal-head">⚠️ Archivos que ya existen en el destino</div>
+    <div class="modal-body">
+      <div style="font-size:13px; color:var(--muted); margin-bottom:12px;">
+        Estos archivos ya están completos en la carpeta elegida. Elige qué hacer con cada uno
+        (por defecto <b>Renombrar</b> para no perder nada):
+      </div>
+      <div id="conflictList"></div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="conflictAction('overwrite')">♻️ Sobrescribir todos</button>
+      <button onclick="conflictAction('rename')">📝 Renombrar todos</button>
+      <button onclick="closeConflicts()">Cancelar</button>
+      <button class="btn-primary" onclick="confirmDownload()">Continuar descarga →</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════ Modal explorador ══════════ -->
@@ -568,7 +593,7 @@ async function browseTo(path) {
     if (data.parent !== null && data.parent !== undefined) {
       const row = document.createElement("div");
       row.className = "dir-row";
-      row.innerHTML = '<span class="up">⬆️</span><span>Subir un nivel</span>';
+      row.innerHTML = '<span class="up">⬆️</span><span>Navegar atrás</span>';
       row.onclick = () => browseTo(data.parent);
       dl.appendChild(row);
     }
@@ -595,7 +620,9 @@ function useCurrentDir() {
   closeBrowser();
 }
 
-// ─────────────────────────── iniciar descarga ───────────────────────────
+// ─────────────────────────── iniciar descarga (con protección) ───────────────────────────
+let pendingDownload = null;
+
 async function startDownload() {
   if (!state.repoInfo || !state.selectedPaths.size)
     return toast("Detecta archivos y selecciona al menos uno", true);
@@ -611,13 +638,67 @@ async function startDownload() {
   };
   $("btnStart").disabled = true;
   try {
+    // preflight: ¿algún archivo ya existe completo en el destino?
+    const pf = await apiPost("/api/preflight", payload);
+    if (pf.conflicts && pf.conflicts.length) {
+      pendingDownload = payload;
+      renderConflicts(pf.conflicts);
+      $("conflictModal").classList.add("show");
+      return;
+    }
+    await launchDownload(payload);
+  } catch (e) {
+    toast("Error: " + e.message, true);
+  } finally {
+    $("btnStart").disabled = false;
+  }
+}
+
+function renderConflicts(conflicts) {
+  const box = $("conflictList");
+  box.innerHTML = "";
+  conflicts.forEach((c) => {
+    const row = document.createElement("div");
+    row.className = "file-row";
+    row.innerHTML =
+      '<span class="file-name" title="' + escAttr(c.path) + '">' + escHtml(c.path) + "</span>" +
+      '<span class="file-size">' + fmt(c.size) + " · existe: " + fmt(c.existing_size) + "</span>" +
+      '<select data-path="' + escAttr(c.path) + '" style="flex:0 0 auto; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-size:13px;">' +
+      '<option value="rename">📝 Renombrar</option>' +
+      '<option value="overwrite">♻️ Sobrescribir</option>' +
+      '<option value="skip">⏭ Saltar</option></select>';
+    box.appendChild(row);
+  });
+}
+
+function conflictAction(action) {
+  document.querySelectorAll("#conflictList select").forEach((sel) => { sel.value = action; });
+}
+
+function closeConflicts() {
+  $("conflictModal").classList.remove("show");
+}
+
+async function confirmDownload() {
+  if (!pendingDownload) return;
+  const policy = {};
+  document.querySelectorAll("#conflictList select").forEach((sel) => {
+    policy[sel.dataset.path] = sel.value;
+  });
+  pendingDownload.conflict_policy = policy;
+  const payload = pendingDownload;
+  pendingDownload = null;
+  closeConflicts();
+  await launchDownload(payload);
+}
+
+async function launchDownload(payload) {
+  try {
     const j = await apiPost("/api/download", payload);
     addJobCard(j);
     toast("Descarga iniciada 🚀");
   } catch (e) {
     toast("Error: " + e.message, true);
-  } finally {
-    $("btnStart").disabled = false;
   }
 }
 
@@ -727,7 +808,7 @@ async function pollJob(id) {
     clearInterval(j.timer);
     const acts = $("jacts-" + id);
     acts.innerHTML =
-      '<button class="btn-sm" onclick="openFolder(\'' + escAttr(st.dest) + '\')">📂 Abrir carpeta</button>' +
+      '<button class="btn-sm" onclick="openFolder(\'' + escJs(st.dest) + '\')">📂 Abrir carpeta</button>' +
       '<button class="btn-sm" onclick="removeJob(\'' + id + '\')">🗑 Quitar</button>';
   } else if (st.state === "error") {
     badge.textContent = "✗ error";
@@ -802,6 +883,10 @@ function escHtml(s) {
 }
 function escAttr(s) {
   return escHtml(s).replace(/"/g, "&quot;");
+}
+// Escapa para incrustar en código JS inline (evita que \I se convierta en I)
+function escJs(s) {
+  return String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 // ─────────────────────────── arranque ───────────────────────────

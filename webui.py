@@ -11,8 +11,10 @@ que sirve la página `index.html` y una pequeña API JSON:
   GET  /api/browse?path=...  → navegación de carpetas del sistema
   POST /api/download         → inicia una descarga  {url, dest, threads, token, revision, files[]}
   GET  /api/status?id=...    → estado/progreso de un trabajo
-  POST /api/cancel           → cancela un trabajo {id}
-  POST /api/open_folder      → abre una carpeta en el explorador {path}
+  POST /api/preflight         → detecta archivos que ya existen en el destino {url, dest, files[]}
+  POST /api/download          → inicia una descarga  {url, dest, threads, token, revision, files[], conflict_policy}
+  POST /api/cancel            → cancela un trabajo {id}
+  POST /api/open_folder       → abre una carpeta en el explorador {path}
 
 Uso:
   python webui.py [--port 8000] [--host 127.0.0.1] [--no-browser]
@@ -161,6 +163,43 @@ def api_browse(params):
     return {"path": path, "parent": parent, "is_root": is_root, "drives": [], "dirs": dirs}
 
 
+def api_preflight(body):
+    """Detecta archivos seleccionados que ya existen completos en el destino."""
+    url = (body.get("url") or "").strip()
+    if not url:
+        raise ValueError("Falta la URL.")
+    dest = (body.get("dest") or "").strip() or default_dest()
+    token = body.get("token") or ""
+    revision = body.get("revision") or None
+    selected = body.get("files") or []
+
+    files, kind, org, repo, rev = hd.list_repo_files(url, token, revision)
+    if selected:
+        wanted = set(selected)
+        files = [f for f in files if f["path"] in wanted]
+
+    dest = os.path.abspath(os.path.expanduser(dest))
+    conflicts = []
+    for f in files:
+        if not f["size"]:
+            continue
+        p = os.path.join(dest, f["path"])
+        if os.path.exists(p) and os.path.getsize(p) >= f["size"]:
+            conflicts.append(
+                {
+                    "path": f["path"],
+                    "size": f["size"],
+                    "existing_size": os.path.getsize(p),
+                }
+            )
+    return {
+        "conflicts": conflicts,
+        "files_count": len(files),
+        "dest": dest,
+        "total_bytes": sum(f["size"] for f in files),
+    }
+
+
 def api_download(body):
     url = (body.get("url") or "").strip()
     if not url:
@@ -170,6 +209,7 @@ def api_download(body):
     token = body.get("token") or ""
     revision = body.get("revision") or None
     selected = body.get("files") or []
+    conflict_policy = body.get("conflict_policy") or {}
 
     if threads is not None and not (1 <= threads <= 128):
         raise ValueError("Los hilos deben estar entre 1 y 128.")
@@ -198,6 +238,7 @@ def api_download(body):
         rev=rev,
         threads=threads,
         token=token,
+        conflict_policy=conflict_policy,
     )
     job_id = uuid.uuid4().hex[:10]
     handle = JobHandle(job_id, job, dest, f"{org}/{repo}")
@@ -336,6 +377,8 @@ class Handler(BaseHTTPRequestHandler):
             body = self._read_body()
             if path == "/api/download":
                 self._send_json(api_download(body))
+            elif path == "/api/preflight":
+                self._send_json(api_preflight(body))
             elif path == "/api/cancel":
                 self._send_json(api_cancel(body))
             elif path == "/api/open_folder":
