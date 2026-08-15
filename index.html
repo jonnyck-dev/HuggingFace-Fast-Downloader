@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HuggingFace Fast Downloader</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --card2: #1c2333;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #ff7a1a;
+    --accent2: #ffb000;
+    --green: #3fb950;
+    --red: #f85149;
+    --blue: #58a6ff;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+    padding-bottom: 60px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+
+  /* ---------- header ---------- */
+  header {
+    padding: 34px 0 22px;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 30px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  header p { color: var(--muted); margin-top: 6px; font-size: 15px; }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .step-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 14px;
+  }
+  .step-num {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #1a0f00;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 800;
+    flex: 0 0 auto;
+  }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+  /* ---------- inputs ---------- */
+  input[type="text"], input[type="password"], input[type="number"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--card2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    transition: all .15s;
+  }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #1a0f00;
+    border: none;
+    font-weight: 800;
+  }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-block { width: 100%; padding: 14px; font-size: 16px; }
+  .btn-sm { padding: 6px 10px; font-size: 13px; }
+
+  /* ---------- file list ---------- */
+  .file-tools { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+  .file-tools label { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+  .file-list { max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .file-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .file-row:last-child { border-bottom: none; }
+  .file-row:hover { background: var(--card2); }
+  .file-row input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; flex: 0 0 auto; }
+  .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+  .file-size { color: var(--muted); font-size: 13px; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+  .file-size.big { color: var(--accent); font-weight: 600; }
+  .empty { padding: 24px; text-align: center; color: var(--muted); }
+  .sel-info { margin-top: 10px; font-size: 14px; color: var(--muted); }
+  .sel-info b { color: var(--accent); }
+
+  /* ---------- options grid ---------- */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+  .token-row { position: relative; }
+  .token-row input { padding-right: 40px; }
+  .eye {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--muted); font-size: 16px; padding: 4px;
+  }
+
+  /* ---------- jobs ---------- */
+  .job {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .job-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .job-head .title { font-weight: 700; flex: 1; min-width: 150px; }
+  .badge {
+    font-size: 12px; padding: 3px 10px; border-radius: 20px;
+    font-weight: 700; border: 1px solid var(--border); color: var(--muted);
+  }
+  .badge.running { color: var(--blue); border-color: var(--blue); }
+  .badge.done { color: var(--green); border-color: var(--green); }
+  .badge.error { color: var(--red); border-color: var(--red); }
+  .badge.cancelled { color: var(--muted); }
+  .bar {
+    height: 14px; background: var(--bg); border-radius: 8px;
+    overflow: hidden; border: 1px solid var(--border);
+  }
+  .bar-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 8px; transition: width .5s ease;
+  }
+  .job-stats {
+    display: flex; gap: 18px; flex-wrap: wrap;
+    margin-top: 10px; font-size: 13px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .job-stats b { color: var(--text); font-weight: 600; }
+  .job-files { margin-top: 12px; }
+  .jfile { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 12.5px; }
+  .jfile .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, monospace; }
+  .jfile .mini { flex: 0 0 140px; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .jfile .mini i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); width: 0%; border-radius: 4px; }
+  .jfile .st { flex: 0 0 90px; text-align: right; color: var(--muted); font-size: 12px; }
+  .jfile.done .fname { color: var(--green); }
+  .jlog {
+    margin-top: 12px; background: #010409; border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px; max-height: 180px; overflow-y: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px; color: #9da7b3; white-space: pre-wrap; word-break: break-all;
+  }
+  .jlog .ok { color: var(--green); }
+  .jlog .err { color: var(--red); }
+  .job-actions { margin-top: 12px; display: flex; gap: 10px; }
+  .error-banner {
+    background: rgba(248, 81, 73, .12); border: 1px solid var(--red);
+    color: var(--red); border-radius: 8px; padding: 10px 12px;
+    margin-top: 12px; font-size: 13px;
+  }
+
+  /* ---------- how it works ---------- */
+  details.how { margin-top: 8px; }
+  details.how summary {
+    cursor: pointer; font-weight: 700; font-size: 15px;
+    padding: 14px 0; color: var(--muted);
+  }
+  details.how summary:hover { color: var(--text); }
+  .how-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; padding: 6px 0 12px; }
+  .how-item {
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .how-item .ico { font-size: 26px; }
+  .how-item h4 { font-size: 14px; margin: 8px 0 6px; }
+  .how-item p { font-size: 13px; color: var(--muted); }
+
+  /* ---------- modal ---------- */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); width: min(560px, 92vw);
+    max-height: 80vh; display: flex; flex-direction: column;
+  }
+  .modal-head { padding: 16px 18px; border-bottom: 1px solid var(--border); font-weight: 700; display: flex; gap: 10px; align-items: center; }
+  .modal-body { padding: 14px 18px; overflow-y: auto; flex: 1; }
+  .modal-foot { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-path {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; font-family: ui-monospace, monospace; font-size: 12.5px;
+    margin-bottom: 10px; word-break: break-all; color: var(--muted);
+  }
+  .drive-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .drive-row button { flex: 0 0 auto; }
+  .dir-list { border: 1px solid var(--border); border-radius: 8px; }
+  .dir-row {
+    padding: 9px 12px; cursor: pointer; border-bottom: 1px solid var(--border);
+    font-size: 14px; display: flex; align-items: center; gap: 10px;
+  }
+  .dir-row:last-child { border-bottom: none; }
+  .dir-row:hover { background: var(--card2); }
+  .dir-row .up { color: var(--accent); }
+
+  /* ---------- footer ---------- */
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 30px; }
+
+  /* ---------- toast ---------- */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--card2); border: 1px solid var(--border); color: var(--text);
+    padding: 12px 20px; border-radius: 10px; font-size: 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5); display: none; z-index: 60;
+    max-width: 90vw;
+  }
+  .toast.show { display: block; animation: fadeIn .2s; }
+  .toast.error { border-color: var(--red); color: var(--red); }
+  @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+  @media (max-width: 640px) {
+    .grid3, .grid2 { grid-template-columns: 1fr; }
+    .file-tools { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚀 HuggingFace Fast Downloader</h1>
+  <p>Descarga modelos, datasets y spaces de HuggingFace a máxima velocidad, sin instalar nada.</p>
+</header>
+
+<div class="wrap">
+
+  <!-- ══════════ Paso 1: URL ══════════ -->
+  <div class="card">
+    <div class="step-title"><span class="step-num">1</span> Pega la URL del modelo o del archivo</div>
+    <input type="text" id="url" placeholder="https://huggingface.co/Qwen/Qwen2.5-7B" spellcheck="false">
+    <div class="hint">Acepta URLs de repositorio completo <code>huggingface.co/org/modelo</code> o de un archivo directo <code>.../resolve/main/archivo.safetensors</code></div>
+    <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
+      <button id="btnDetect" class="btn-primary" onclick="detectFiles()">🔍 Detectar archivos</button>
+      <span id="detectMsg" style="color:var(--muted); font-size:13px;"></span>
+    </div>
+  </div>
+
+  <!-- ══════════ Paso 2: Archivos ══════════ -->
+  <div class="card" id="cardFiles" style="display:none;">
+    <div class="step-title"><span class="step-num">2</span> Elige qué descargar</div>
+    <div class="file-tools">
+      <label><input type="checkbox" id="selectAll" checked onchange="toggleAll()"> <b>Todos</b></label>
+      <input type="text" id="filter" placeholder="Filtrar archivos..." style="flex:1;" oninput="renderFiles()">
+    </div>
+    <div class="file-list" id="fileList"></div>
+    <div class="sel-info" id="selInfo"></div>
+  </div>
+
+  <!-- ══════════ Paso 3: Destino y opciones ══════════ -->
+  <div class="card" id="cardOpts" style="display:none;">
+    <div class="step-title"><span class="step-num">3</span> ¿Dónde lo guardo y cómo?</div>
+
+    <div class="field" style="margin-bottom:12px;">
+      <label>📁 Carpeta de destino</label>
+      <div class="row">
+        <input type="text" id="dest" spellcheck="false" placeholder="Carpeta donde se guardará el modelo">
+        <button id="btnBrowse" style="flex:0 0 auto;" onclick="openBrowser()">Explorar…</button>
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div class="field">
+        <label>⚙️ Hilos (conexiones paralelas)</label>
+        <input type="number" id="threads" min="1" max="128" value="0">
+        <div class="hint" id="threadsHint"></div>
+      </div>
+      <div class="field">
+        <label>🌿 Revisión / rama</label>
+        <input type="text" id="revision" value="main" spellcheck="false">
+      </div>
+      <div class="field">
+        <label>🔑 Token (opcional)</label>
+        <div class="token-row">
+          <input type="password" id="token" placeholder="hf_xxxx" autocomplete="off">
+          <button class="eye" onclick="toggleToken()" title="Mostrar/ocultar">👁</button>
+        </div>
+        <div class="hint">Solo para repos gated o privados</div>
+      </div>
+    </div>
+  </div>
+
+  <button id="btnStart" class="btn-primary btn-block" style="display:none;" onclick="startDownload()">🚀 Iniciar descarga</button>
+
+  <!-- ══════════ Descargas ══════════ -->
+  <div id="jobsArea" style="margin-top: 26px;"></div>
+
+  <!-- ══════════ Cómo funciona ══════════ -->
+  <div class="card" style="margin-top: 26px;">
+    <details class="how">
+      <summary>💡 ¿Cómo funciona? (léelo una vez y ya está)</summary>
+      <div class="how-grid">
+        <div class="how-item">
+          <div class="ico">🔗</div>
+          <h4>1. Pega la URL</h4>
+          <p>Copia el enlace del modelo o del archivo desde huggingface.co y pulsa <b>Detectar archivos</b>.</p>
+        </div>
+        <div class="how-item">
+          <div class="ico">☑️</div>
+          <h4>2. Elige archivos</h4>
+          <p>Marca los archivos que quieras. Por defecto están todos seleccionados.</p>
+        </div>
+        <div class="how-item">
+          <div class="ico">📁</div>
+          <h4>3. Elige destino</h4>
+          <p>Selecciona la carpeta con el botón <b>Explorar</b>. Los hilos se detectan automáticamente según tu CPU.</p>
+        </div>
+        <div class="how-item">
+          <div class="ico">⚡</div>
+          <h4>4. Descarga</h4>
+          <p>Cada archivo se parte en trozos y se baja con varias conexiones a la vez. Si se corta, reanuda. Y se verifica SHA-256.</p>
+        </div>
+      </div>
+      <div style="font-size:13px; color:var(--muted); line-height:1.7;">
+        <b>Detalles:</b> la descarga usa peticiones HTTP <code>Range</code> para bajar un archivo en N trozos paralelos
+        (uno por hilo), luego los une. Si un trozo queda a medias, en la próxima ejecución se reanuda desde donde quedó
+        (resume). Cuando HuggingFace expone el hash SHA-256 del archivo, se verifica automáticamente al terminar.
+        Todo funciona con Python estándar: <b>cero dependencias</b>.
+      </div>
+    </details>
+  </div>
+
+  <footer>Hecho con ❤️ para descargar modelos sin paciencia · solo necesitas Python 3.8+</footer>
+</div>
+
+<!-- ══════════ Modal explorador ══════════ -->
+<div class="modal-backdrop" id="browserModal">
+  <div class="modal">
+    <div class="modal-head">📁 Elegir carpeta de destino</div>
+    <div class="modal-body">
+      <div class="modal-path" id="browsePath">/</div>
+      <div class="drive-row" id="driveRow"></div>
+      <div class="dir-list" id="dirList"></div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="closeBrowser()">Cancelar</button>
+      <button class="btn-primary" onclick="useCurrentDir()">Usar esta carpeta ✓</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+// ─────────────────────────── estado global ───────────────────────────
+const state = {
+  repoInfo: null,     // {kind, org, repo, revision, files[], total_bytes}
+  files: [],          // archivos visibles según filtro
+  selectedPaths: new Set(),
+  jobs: {},           // id -> {timer, card}
+  browse: { path: "" },
+};
+
+const $ = (id) => document.getElementById(id);
+const fmt = (b) => {
+  b = Number(b) || 0;
+  const u = ["B", "KB", "MB", "GB"];
+  let i = 0;
+  while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+  return b.toFixed(b >= 100 ? 0 : 2) + " " + u[i];
+};
+const fmtSpeed = (b) => fmt(b) + "/s";
+const fmtEta = (s) => {
+  s = Number(s) || 0;
+  if (s <= 0 || !isFinite(s)) return "--";
+  if (s < 60) return Math.round(s) + "s";
+  if (s < 3600) return Math.floor(s / 60) + "m " + Math.round(s % 60) + "s";
+  return Math.floor(s / 3600) + "h " + Math.floor((s % 3600) / 60) + "m";
+};
+
+function toast(msg, isError) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "toast show" + (isError ? " error" : "");
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => (t.className = "toast"), 3500);
+}
+
+async function apiGet(path) {
+  const r = await fetch(path);
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+async function apiPost(path, body) {
+  const r = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+
+// ─────────────────────────── paso 1: detectar ───────────────────────────
+async function detectFiles() {
+  const url = $("url").value.trim();
+  if (!url) return toast("Pega primero una URL de HuggingFace", true);
+  $("btnDetect").disabled = true;
+  $("detectMsg").textContent = "Consultando HuggingFace…";
+  try {
+    const q = new URLSearchParams({ url });
+    const token = $("token").value.trim();
+    const rev = $("revision").value.trim();
+    if (token) q.set("token", token);
+    if (rev) q.set("revision", rev);
+    const data = await apiGet("/api/files?" + q.toString());
+
+    state.repoInfo = data;
+    state.files = data.files;
+    state.selectedPaths = new Set(data.files.map((f) => f.path));
+    renderFiles();
+    $("cardFiles").style.display = "block";
+    $("cardOpts").style.display = "block";
+    $("btnStart").style.display = "block";
+    $("detectMsg").textContent =
+      "✅ " + data.files.length + " archivos · " + fmt(data.total_bytes) +
+      (data.kind === "file" ? " (archivo directo)" : " (" + data.kind + ")");
+    if (!data.threads_detected) data.threads_detected = 16;
+    $("threads").placeholder = "auto (" + data.threads_detected + ")";
+    $("threadsHint").textContent = "Detectado automático: " + data.threads_detected + " hilos (deja 0 para usar auto)";
+    if (!$("dest").value) $("dest").placeholder = "Ej: " + ($("dest").placeholder || "carpeta de descargas");
+    updateSelInfo();
+  } catch (e) {
+    toast("Error: " + e.message, true);
+  } finally {
+    $("btnDetect").disabled = false;
+  }
+}
+
+// ─────────────────────────── paso 2: lista de archivos ───────────────────────────
+function renderFiles() {
+  const q = $("filter").value.toLowerCase();
+  const files = state.repoInfo.files.filter((f) => !q || f.path.toLowerCase().includes(q));
+  state.files = files;
+  const box = $("fileList");
+  box.innerHTML = "";
+  if (!files.length) {
+    box.innerHTML = '<div class="empty">Sin archivos que coincidan con el filtro.</div>';
+    return;
+  }
+  files.forEach((f) => {
+    const row = document.createElement("div");
+    row.className = "file-row";
+    const checked = state.selectedPaths.has(f.path) ? "checked" : "";
+    const big = f.size >= 1e9;
+    row.innerHTML =
+      '<input type="checkbox" ' + checked + ' onchange="toggleFile(this, \'' +
+      escAttr(f.path) + '\')">' +
+      '<span class="file-name" title="' + escAttr(f.path) + '">' + escHtml(f.path) + "</span>" +
+      '<span class="file-size' + (big ? " big" : "") + '">' + (f.size ? fmt(f.size) : "desconocido") + "</span>";
+    box.appendChild(row);
+  });
+  $("selectAll").checked = state.selectedPaths.size === state.repoInfo.files.length;
+  updateSelInfo();
+}
+
+function toggleFile(cb, path) {
+  if (cb.checked) state.selectedPaths.add(path);
+  else state.selectedPaths.delete(path);
+  $("selectAll").checked = state.selectedPaths.size === state.repoInfo.files.length;
+  updateSelInfo();
+}
+
+function toggleAll() {
+  const on = $("selectAll").checked;
+  if (on) state.repoInfo.files.forEach((f) => state.selectedPaths.add(f.path));
+  else state.selectedPaths.clear();
+  renderFiles();
+}
+
+function updateSelInfo() {
+  const sel = state.repoInfo.files.filter((f) => state.selectedPaths.has(f.path));
+  const total = sel.reduce((a, f) => a + (f.size || 0), 0);
+  $("selInfo").innerHTML =
+    "<b>" + sel.length + "</b> archivo(s) seleccionado(s) · <b>" + fmt(total) + "</b>";
+}
+
+// ─────────────────────────── paso 3: explorador de carpetas ───────────────────────────
+function openBrowser() {
+  $("browserModal").classList.add("show");
+  browseTo("root");
+}
+function closeBrowser() {
+  $("browserModal").classList.remove("show");
+}
+async function browseTo(path) {
+  try {
+    const data = await apiGet("/api/browse?path=" + encodeURIComponent(path));
+    state.browse = data;
+    $("browsePath").textContent = data.path || "Este equipo";
+    const dr = $("driveRow");
+    dr.innerHTML = "";
+    if (data.drives && data.drives.length) {
+      data.drives.forEach((d) => {
+        const b = document.createElement("button");
+        b.textContent = "💾 " + d;
+        b.onclick = () => browseTo(d);
+        dr.appendChild(b);
+      });
+    }
+    const dl = $("dirList");
+    dl.innerHTML = "";
+    if (data.parent !== null && data.parent !== undefined) {
+      const row = document.createElement("div");
+      row.className = "dir-row";
+      row.innerHTML = '<span class="up">⬆️</span><span>Subir un nivel</span>';
+      row.onclick = () => browseTo(data.parent);
+      dl.appendChild(row);
+    }
+    (data.dirs || []).forEach((d) => {
+      const row = document.createElement("div");
+      row.className = "dir-row";
+      row.innerHTML = "<span>📂</span><span>" + escHtml(d) + "</span>";
+      row.onclick = () => browseTo(data.path ? data.path + sep(d) : d);
+      dl.appendChild(row);
+    });
+    if (!dl.children.length) dl.innerHTML = '<div class="empty">Carpeta vacía</div>';
+  } catch (e) {
+    toast("Error: " + e.message, true);
+  }
+}
+function sep(name) {
+  const p = state.browse.path || "";
+  return p.endsWith("\\") || p.endsWith("/") || p === "" ? name : (/^[A-Za-z]:[\\/]?$/.test(p) ? "\\" : "/") + name;
+}
+function useCurrentDir() {
+  const p = state.browse.path;
+  if (!p) return toast("Elige una carpeta", true);
+  $("dest").value = p;
+  closeBrowser();
+}
+
+// ─────────────────────────── iniciar descarga ───────────────────────────
+async function startDownload() {
+  if (!state.repoInfo || !state.selectedPaths.size)
+    return toast("Detecta archivos y selecciona al menos uno", true);
+  const files = state.repoInfo.files.filter((f) => state.selectedPaths.has(f.path));
+  const threads = parseInt($("threads").value, 10) || 0;
+  const payload = {
+    url: $("url").value.trim(),
+    dest: $("dest").value.trim(),
+    threads,
+    token: $("token").value.trim(),
+    revision: $("revision").value.trim() || "main",
+    files: files.map((f) => f.path),
+  };
+  $("btnStart").disabled = true;
+  try {
+    const j = await apiPost("/api/download", payload);
+    addJobCard(j);
+    toast("Descarga iniciada 🚀");
+  } catch (e) {
+    toast("Error: " + e.message, true);
+  } finally {
+    $("btnStart").disabled = false;
+  }
+}
+
+// ─────────────────────────── tarjetas de descarga ───────────────────────────
+function addJobCard(j) {
+  const area = $("jobsArea");
+  const card = document.createElement("div");
+  card.className = "job";
+  card.id = "job-" + j.id;
+  card.innerHTML =
+    '<div class="job-head">' +
+    '<span class="title">📦 ' + escHtml(j.repo) + "</span>" +
+    '<span class="badge running" id="badge-' + j.id + '">descargando…</span>' +
+    "</div>" +
+    '<div class="bar"><div class="bar-fill" id="bar-' + j.id + '"></div></div>' +
+    '<div class="job-stats">' +
+    "<span><b id='done-" + j.id + "'>0 B</b> / <span id='total-" + j.id + "'>" + fmt(j.total_bytes) + "</span></span>" +
+    "<span>⚡ <b id='speed-" + j.id + "'>0 B/s</b></span>" +
+    "<span>⏳ ETA <b id='eta-" + j.id + "'>--</b></span>" +
+    "<span>⏱ <b id='elapsed-" + j.id + "'>0s</b></span>" +
+    "<span>🧵 <b>" + j.threads + "</b></span>" +
+    "</div>" +
+    '<div class="job-files" id="jfiles-' + j.id + '"></div>' +
+    '<div class="job-actions" id="jacts-' + j.id + '">' +
+    '<button class="btn-sm" onclick="cancelJob(\'' + j.id + '\')">✋ Cancelar</button>' +
+    "</div>" +
+    '<div class="jlog" id="jlog-' + j.id + '"></div>';
+  area.prepend(card);
+
+  // filas por archivo
+  const jf = $("jfiles-" + j.id);
+  (j.files_count ? state.repoInfo.files.filter((f) => j.files ? f.path : true) : []).forEach((f) => {
+    // mostramos solo los seleccionados del payload
+  });
+  // reconstruimos con el payload real
+  buildJobFiles(j, card);
+
+  state.jobs[j.id] = { card, timer: setInterval(() => pollJob(j.id), 800) };
+  pollJob(j.id);
+}
+
+function buildJobFiles(j, card) {
+  // usamos la info del payload enviado (files del estado actual)
+  const selected = state.repoInfo.files.filter((f) => state.selectedPaths.has(f.path));
+  const box = $("jfiles-" + j.id);
+  box.innerHTML = "";
+  if (!selected.length) return;
+  selected.forEach((f) => {
+    const row = document.createElement("div");
+    row.className = "jfile";
+    row.id = "jf-" + j.id + "-" + hashStr(f.path);
+    row.innerHTML =
+      '<span class="fname">' + escHtml(f.path) + "</span>" +
+      '<span class="mini"><i></i></span>' +
+      '<span class="st">' + (f.size ? fmt(f.size) : "") + "</span>";
+    box.appendChild(row);
+  });
+}
+function hashStr(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
+
+async function pollJob(id) {
+  let st;
+  try {
+    st = await apiGet("/api/status?id=" + id);
+  } catch (e) {
+    return;
+  }
+  const j = state.jobs[id];
+  if (!j) return;
+
+  // barra total
+  const pct = st.total_bytes ? (st.downloaded_bytes / st.total_bytes) * 100 : 0;
+  $("bar-" + id).style.width = pct.toFixed(1) + "%";
+  $("done-" + id).textContent = fmt(st.downloaded_bytes);
+  $("speed-" + id).textContent = fmtSpeed(st.speed_bps);
+  $("eta-" + id).textContent = fmtEta(st.eta_seconds);
+  $("elapsed-" + id).textContent = Math.round(st.elapsed_seconds || 0) + "s";
+
+  // por archivo
+  const rowMap = {};
+  document.querySelectorAll("#jfiles-" + id + " .jfile").forEach((r) => {
+    rowMap[r.querySelector(".fname").textContent] = r;
+  });
+  (st.files || []).forEach((f) => {
+    const row = rowMap[f.path];
+    if (!row) return;
+    const p = f.size ? (f.downloaded / f.size) * 100 : (f.state === "done" ? 100 : 0);
+    row.querySelector(".mini i").style.width = Math.min(100, p).toFixed(1) + "%";
+    const stEl = row.querySelector(".st");
+    if (f.state === "done") { row.classList.add("done"); stEl.textContent = "✓ " + (f.size ? fmt(f.size) : ""); }
+    else if (f.state === "error") { row.classList.add("done"); row.querySelector(".fname").style.color = "var(--red)"; stEl.textContent = "✗"; }
+    else stEl.textContent = fmt(f.downloaded) + " / " + (f.size ? fmt(f.size) : "?");
+  });
+
+  // log
+  const logEl = $("jlog-" + id);
+  if (st.log && st.log.length) {
+    logEl.innerHTML = st.log.map((l) => escHtml(l)).join("\n");
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // badge + acciones finales
+  const badge = $("badge-" + id);
+  if (st.state === "done") {
+    badge.textContent = "✓ completado";
+    badge.className = "badge done";
+    clearInterval(j.timer);
+    const acts = $("jacts-" + id);
+    acts.innerHTML =
+      '<button class="btn-sm" onclick="openFolder(\'' + escAttr(st.dest) + '\')">📂 Abrir carpeta</button>' +
+      '<button class="btn-sm" onclick="removeJob(\'' + id + '\')">🗑 Quitar</button>';
+  } else if (st.state === "error") {
+    badge.textContent = "✗ error";
+    badge.className = "badge error";
+    clearInterval(j.timer);
+    const acts = $("jacts-" + id);
+    acts.innerHTML =
+      '<button class="btn-sm" onclick="removeJob(\'' + id + '\')">🗑 Quitar</button>' +
+      '<button class="btn-sm" onclick="retryJob(\'' + id + '\')">🔁 Reintentar (reanuda)</button>';
+    if (st.error) {
+      const eb = document.createElement("div");
+      eb.className = "error-banner";
+      eb.textContent = "⚠️ " + st.error;
+      j.card.appendChild(eb);
+    }
+  } else if (st.state === "cancelled") {
+    badge.textContent = "✋ cancelado";
+    badge.className = "badge cancelled";
+    clearInterval(j.timer);
+    $("jacts-" + id).innerHTML = '<button class="btn-sm" onclick="removeJob(\'' + id + '\')">🗑 Quitar</button>';
+  }
+}
+
+async function cancelJob(id) {
+  try {
+    await apiPost("/api/cancel", { id });
+    toast("Cancelando…");
+  } catch (e) {
+    toast("Error: " + e.message, true);
+  }
+}
+async function retryJob(id) {
+  // re-lanza el mismo payload: el resume retoma los chunks
+  const st = await apiGet("/api/status?id=" + id);
+  const payload = {
+    url: $("url").value.trim(),
+    dest: st.dest,
+    threads: parseInt($("threads").value, 10) || 0,
+    token: $("token").value.trim(),
+    revision: $("revision").value.trim() || "main",
+    files: (st.files || []).map((f) => f.path),
+  };
+  try {
+    const j = await apiPost("/api/download", payload);
+    removeJob(id);
+    addJobCard(j);
+  } catch (e) {
+    toast("Error: " + e.message, true);
+  }
+}
+function removeJob(id) {
+  if (state.jobs[id]) clearInterval(state.jobs[id].timer);
+  const card = $("job-" + id);
+  if (card) card.remove();
+  delete state.jobs[id];
+}
+async function openFolder(path) {
+  try {
+    await apiPost("/api/open_folder", { path });
+  } catch (e) {
+    toast("Error: " + e.message, true);
+  }
+}
+
+// ─────────────────────────── utilidades varias ───────────────────────────
+function toggleToken() {
+  const t = $("token");
+  t.type = t.type === "password" ? "text" : "password";
+}
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function escAttr(s) {
+  return escHtml(s).replace(/"/g, "&quot;");
+}
+
+// ─────────────────────────── arranque ───────────────────────────
+(async function init() {
+  try {
+    const h = await apiGet("/api/health");
+    $("threads").placeholder = "auto (" + h.threads_detected + ")";
+    $("threadsHint").textContent = "Detectado automático: " + h.threads_detected + " hilos (deja 0 para usar auto)";
+  } catch (e) { /* servidor sin health: seguir igual */ }
+  // ejemplo en el input si está vacío
+  if (!$("url").value) {
+    $("url").placeholder = "https://huggingface.co/Qwen/Qwen2.5-7B";
+  }
+  $("url").addEventListener("keydown", (e) => { if (e.key === "Enter") detectFiles(); });
+})();
+</script>
+</body>
+</html>

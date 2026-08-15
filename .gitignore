@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Descargas de prueba / por defecto
+downloads/
+*.safetensors
+*.bin
+*.gguf
+
+# Chunks temporales de descarga
+.chunks_*/
+
+# Documentación interna (no pública)
+documentacion/
+
+# Scripts temporales de desarrollo
+tmp/
+
+# Sistema
+.DS_Store
+Thumbs.db
+.venv/
+venv/
