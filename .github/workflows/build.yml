@@ -68,11 +68,12 @@ jobs:
       - name: Renombrar artefacto
         shell: bash
         run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            mv dist/HuggingFace-Fast-Downloader.exe "dist/${{ matrix.artifact }}"
-          else
-            mv dist/HuggingFace-Fast-Downloader "dist/${{ matrix.artifact }}"
-          fi
+          SRC="dist/HuggingFace-Fast-Downloader"
+          case "$RUNNER_OS" in
+            Windows) SRC="${SRC}.exe" ;;
+          esac
+          DST="dist/${{ matrix.artifact }}"
+          if [ "$SRC" != "$DST" ]; then mv "$SRC" "$DST"; fi
 
       - name: Adjuntar a la release
         uses: softprops/action-gh-release@v2
