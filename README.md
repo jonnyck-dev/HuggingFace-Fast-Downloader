@@ -15,24 +15,38 @@ Funciona en **Windows, Linux y macOS**.
 | ✅ **Verificación SHA-256** | Cuando HuggingFace expone el hash (LFS oid), verifica la integridad automáticamente |
 | 📦 **Repos completos** | Pega la URL de un repo y baja **todos** sus archivos, o elige cuáles |
 | 🔑 **Repos gated** | Soporta tokens de HuggingFace |
-| 🖥 **CLI + Web UI** | Usa la terminal o la interfaz web local (en español) |
+| 🪟 **App de escritorio** | Ventana nativa de Windows (Tkinter, cero dependencias). Cerrar la ventana cierra el proceso y cancela las descargas |
+| 🖥 **CLI + Web UI** | Además de la app de escritorio, tienes terminal y una interfaz web opcional |
 
 ## 📦 Requisitos
 
 - **Python 3.8+** (no hace falta instalar nada más: `urllib` + `http.server`, todo estándar)
 
-## 🚀 Uso rápido (Web UI)
+## 🚀 Uso rápido (app de escritorio — recomendado)
+
+**Windows:** descarga el ejecutable portable desde [Releases](https://github.com/jonnyck-dev/HuggingFace-Fast-Downloader/releases), haz doble clic y listo (no necesitas Python ni instalar nada). Al cerrar la ventana se cierra el proceso.
+
+**Con Python:**
+
+```bash
+python gui.py
+```
+
+Flujo en la ventana:
+
+1. **Pega la URL** del modelo o del archivo → *Detectar archivos*
+2. **Marca** los archivos que quieras (por defecto, todos)
+3. **Elige la carpeta** de destino con *Examinar* (los hilos se detectan solos)
+4. 🚀 **Iniciar descarga** — progreso en tiempo real con velocidad, ETA, log y verificación
+5. Si un archivo **ya existe** en el destino, te pregunta: *renombrar* (por defecto), *sobrescribir* u *omitir*
+
+## 🌐 Uso en el navegador (opcional)
 
 ```bash
 python webui.py
 ```
 
-Se abre automáticamente el navegador en `http://127.0.0.1:8000`:
-
-1. **Pega la URL** del modelo o del archivo → *Detectar archivos*
-2. **Marca** los archivos que quieras (por defecto, todos)
-3. **Elige la carpeta** de destino con *Explorar* (los hilos se detectan solos)
-4. 🚀 **Iniciar descarga** — verás el progreso en tiempo real con velocidad, ETA y verificación
+Se abre el navegador en `http://127.0.0.1:8000` con la misma funcionalidad.
 
 ## 💻 Uso por terminal (CLI)
 
@@ -83,9 +97,10 @@ termina correctamente, esa carpeta se elimina sola.
 ```
 HuggingFace Fast Downloader/
 ├── hf_downloader.py     # Motor de descarga (librería)
+├── gui.py               # App de escritorio (ventana nativa, Tkinter)
+├── webui.py             # Interfaz web opcional (navegador)
+├── index.html           # Frontend web (en español)
 ├── hf_fast_download.py  # Interfaz de línea de comandos
-├── webui.py             # Servidor web local (interfaz gráfica)
-├── index.html           # Frontend (en español)
 ├── README.md
 └── LICENSE
 ```

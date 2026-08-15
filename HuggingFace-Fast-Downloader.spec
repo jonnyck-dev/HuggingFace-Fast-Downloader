@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['webui.py'],
+    ['gui.py'],
     pathex=[],
     binaries=[],
-    datas=[('index.html', '.')],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
