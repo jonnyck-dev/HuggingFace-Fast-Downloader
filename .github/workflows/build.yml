@@ -46,6 +46,7 @@ jobs:
           python-version: "3.11"
 
       - name: Instalar PyInstaller
+        shell: bash
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
             pip install --break-system-packages pyinstaller
