@@ -262,6 +262,8 @@
   .toast.error { border-color: var(--red); color: var(--red); }
   @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
+  footer a:hover { transform: scale(1.05); }
+
   @media (max-width: 640px) {
     .grid3, .grid2 { grid-template-columns: 1fr; }
     .file-tools { flex-wrap: wrap; }
@@ -372,7 +374,14 @@
     </details>
   </div>
 
-  <footer>Hecho con ❤️ para descargar modelos sin paciencia · solo necesitas Python 3.8+</footer>
+  <footer>
+    <div style="margin-bottom:12px;">¿Te ha sido útil? Invítame un café ☕</div>
+    <a href="https://ko-fi.com/jonnyckdev" target="_blank" rel="noopener"
+       style="display:inline-block; background:#29abe0; color:#fff; font-weight:700; font-size:15px; padding:10px 22px; border-radius:30px; text-decoration:none; box-shadow:0 4px 14px rgba(41,171,224,.35); transition:transform .15s;">
+      💜 Cómprame un Ko-fi
+    </a>
+    <div style="margin-top:14px; font-size:12.5px;">Hecho con ❤️ para descargar modelos sin paciencia · solo necesitas Python 3.8+</div>
+  </footer>
 </div>
 
 <!-- ══════════ Modal explorador ══════════ -->

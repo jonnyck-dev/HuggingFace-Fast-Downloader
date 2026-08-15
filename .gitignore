@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 
+# PyInstaller
+build/
+*.spec.bak
+
 # Descargas de prueba / por defecto
 downloads/
 *.safetensors
@@ -17,6 +21,9 @@ documentacion/
 
 # Scripts temporales de desarrollo
 tmp/
+
+# Log del ejecutable portable
+HuggingFace-Fast-Downloader.log
 
 # Sistema
 .DS_Store

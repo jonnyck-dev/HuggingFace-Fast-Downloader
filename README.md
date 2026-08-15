@@ -96,3 +96,7 @@ seguir siendo de **cero dependencias** — si añades algo, intenta mantenerlo a
 ## 📄 Licencia
 
 [MIT](LICENSE)
+
+## ☕ ¿Te ha sido útil?
+
+Invítame un café: <https://ko-fi.com/jonnyckdev> 💜

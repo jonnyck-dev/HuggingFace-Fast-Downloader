@@ -39,6 +39,36 @@ import hf_downloader as hd
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_PATH = os.path.join(SCRIPT_DIR, "index.html")
 
+# ── Soporte para PyInstaller (ejecutable portable) ────────────────────────
+IS_FROZEN = getattr(sys, "frozen", False)
+
+
+def resource_path(rel):
+    """Ruta de un recurso empaquetado: con PyInstaller los archivos adjuntos
+    se extraen a una carpeta temporal (sys._MEIPASS) en cada ejecución."""
+    base = getattr(sys, "_MEIPASS", SCRIPT_DIR)
+    return os.path.join(base, rel)
+
+
+def exe_dir():
+    """Directorio del ejecutable (para logs / carpeta junto al .exe)."""
+    if IS_FROZEN:
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return SCRIPT_DIR
+
+
+if IS_FROZEN:
+    # Sin consola (--windowed): redirigir stdout/stderr a un archivo de log
+    # junto al .exe para poder depurar si algo falla.
+    try:
+        log_path = os.path.join(exe_dir(), "HuggingFace-Fast-Downloader.log")
+        _logf = open(log_path, "a", buffering=1, encoding="utf-8")
+        sys.stdout = _logf
+        sys.stderr = _logf
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] --- inicio ---")
+    except Exception:
+        pass
+
 JOBS = {}          # job_id -> JobHandle
 JOBS_LOCK = threading.Lock()
 
@@ -272,10 +302,11 @@ class Handler(BaseHTTPRequestHandler):
         params = parse_qs(parsed.query)
         try:
             if path == "/" or path == "/index.html":
-                if not os.path.exists(INDEX_PATH):
+                index = resource_path("index.html")
+                if not os.path.exists(index):
                     self._send_text("index.html no encontrado junto a webui.py", 500)
                     return
-                with open(INDEX_PATH, "rb") as f:
+                with open(index, "rb") as f:
                     data = f.read()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
